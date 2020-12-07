@@ -15,7 +15,6 @@ halfwi = int(width/2)
 radi = int(size/2)
 player = True
 reset = False
-tick = 0
 
 arr = [[0 for i in range(width)] for j in range(height)]
 
