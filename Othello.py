@@ -1,158 +1,210 @@
 import time, random, ctypes, numpy, math
+from pygame import gfxdraw
 import pygame as p
 ctypes.windll.user32.SetProcessDPIAware()
 
 width = 8
 height = 8
 
-size = 100
-turn = -1
+size = 110
 
-colors = [(0,144,103),(255,255,255),(70,70,70),(0,0,0)]
+movelist = []
+colors = [(0,144,103),(255,255,255),(70,70,70),(255,0,0),(0,0,0)]
 radi = int(size/2)
-player = True
+halfwi = int(width/2)
+halfhe = int(height/2)
 
 arr = [[0 for i in range(width)] for j in range(height)]
-
-for i in range(0,2):
-    arr[int(height/2-i)][int(width/2-i)] = 1
-    arr[int(height/2+(0-i))][int(width/2+(i-1))] = -1
-
-arr[2][3] = 2
-arr[3][2] = 2 
-arr[4][5] = 2
-arr[5][4] = 2
-
 
 p.init()
 window = p.display.set_mode((size*width,size*height))
 p.display.set_caption('Othello!') 
 watch = p.time.Clock()
 
-def robot():
-    global y,x,player
-    while(arr[y][x] < 2):
-        y = random.randint(0,height-1)
-        x = random.randint(0,width-1)
-
-    arr[y][x] = 1  
-    turn = 1
-    update()
-    player = True
+def circle(x,y,r,col):
+    x = int(size*x)+radi
+    y = int(size*y)+radi
+    gfxdraw.aacircle(window,x,y,r,colors[col])
+    gfxdraw.filled_circle(window,x,y,r,colors[col])
 
 def human():
-    global y,x,player
     x,y = p.mouse.get_pos()
-            
+       
     y = math.floor(y/size)
     x = math.floor(x/size)
-            
-    if(arr[y][x] == 2):
+
+    if(arr[y][x] == -2):
         arr[y][x] = -1
-        turn = -1
-        update()
-        player = False
+        if(update(y,x,1) == False):
+            robot()
 
-def corner(j,i):
-    global nj,pj,ni,pi
-    nj,pj = -1,2
-    ni,pi = -1,2
+def robot():
+    if(len(movelist) > 0):
+        choice = random.choice(movelist)
+        y,x = choice[0],choice[1]
 
-    tj = round(j/(height-1),1)
-    ti = round(i/(width-1),1)
+        if(arr[y][x] == 2):
+            time.sleep(0.5)
+            arr[y][x] = 1
+            update(y,x,-1)
 
-    if(tj == 0.0): nj = 0
-    if(tj == 1.0): pj = 1
-    if(ti == 0.0): ni = 0
-    if(ti == 1.0): pi = 1
+def ab(y,x,nr):
+    if(nr == 0 and y == 0 or nr == 2 and x == 0): return 0
+    elif(nr == 0 or nr == 2): return -1
 
-def flip():
-    global turn,nj,pj,ni,pi
+    if(nr == 1 and y == height-1 or nr == 3 and x == width-1): return 1
+    elif(nr == 1 or nr == 3): return 2
 
-    corner(y,x)
-
-    for b in range(nj,pj):
-        for a in range(ni,pi):
-            try:
-                if(arr[y+b][x+a] == -1*turn):
-
-                    index = 1
-                    while(arr[y+b*index][x+a*index] == -1*turn):
-                        cache.append(y+b*index)
-                        cache.append(x+a*index)
-                        index += 1
-
-                    if(arr[y+b*index][x+a*index] == turn):
-                        for i in range(0,int(len(cache)/2)):
-                            arr[cache[i*2]][cache[i*2+1]] = turn
-                        cache = []
-            except:
-                pass
-
-def update():
-    global player,turn,nj,pj,ni,pi
-
-    for j in range(0,height):
-        for i in range(0,width):
-            if(arr[j][i] == 2):
-                arr[j][i] = 0
-
-    flip()
-    
+def remove(reset):
     for j in range(0,height):
         for i in range(0,width):
 
-            if(arr[j][i] == turn):
+            val = arr[j][i]
 
-                corner(j,i)
+            if(reset): arr[j][i] = 0
 
-                for b in range(nj,pj):
-                    for a in range(ni,pi):
+            if(val == 2 or val == -2 or reset): arr[j][i] = 0
 
-                        if(arr[j+b][i+a] == -1*turn):
+def flip(j,i,n):
+
+    cache = []
+
+    for b in range(ab(j,i,0),ab(j,i,1)):
+        for a in range(ab(j,i,2),ab(j,i,3)):
+
+            if(arr[j+b][i+a] == n):
+
+                index = 1
+                jval = j+index*b
+                ival = i+index*a
+
+                while(0 <= jval < height and 0 <= ival < width and arr[jval][ival] == n):
+                    cache.append(jval)
+                    cache.append(ival)
+                    index += 1
+                    jval = j+index*b
+                    ival = i+index*a
+
+                if(0 <= jval < height and 0 <= ival < width and arr[jval][ival] == -1*n):
+                    for k in range(0,int(len(cache)/2)):
+                        arr[cache[k*2]][cache[k*2+1]] = -1*n
+                cache = []
+
+def moves(n):
+    global movelist
+    movelist = []
+    for j in range(0,height):
+        for i in range(0,width):
+        
+            if(arr[j][i] == n):
+
+                for b in range(ab(j,i,0),ab(j,i,1)):
+                    for a in range(ab(j,i,2),ab(j,i,3)):
+
+                        if(arr[j+b][i+a] == -1*n):
                             
                             index = 1
-                            while(j+index*b < height and i+index*a < width and arr[j+b*index][i+a*index] == -1*turn):
-                                index += 1
-                                
-                            if(j+index*b < height and i+index*a < width and arr[j+b*index][i+a*index] == 0):
-                                arr[j+b*index][i+a*index] = 2
+                            jval,ival = j+index*b,i+index*a
 
-def write():
+                            while(0 <= jval < height and 0 <= ival < width and arr[jval][ival] == -1*n):
+                                index += 1
+                                jval,ival = j+index*b,i+index*a
+                                
+                            if(0 <= jval < height and 0 <= ival< width and arr[jval][ival] == 0):
+                                arr[jval][ival] = 2*n
+                                movelist.append([jval,ival])
+
+def check(n):
+    white = 0
+    black = 0
+    moves = 0
+    empty = 0
+    space = int(width*size/18)
+
+    for j in range(0,height):
+        for i in range(0,width):
+            
+            val = arr[j][i]
+
+            if(val == -1): black += 1
+
+            elif(val == 1):  white += 1
+
+            else: empty += 1
+
+            if(val == 2*n): moves += 1
+
+    p.display.set_caption('Othello!'+(' '*space)+'Black: '+str(black)+'        White: '+str(white))
+    
+    if(empty == 0 or moves == 0 or black == 0 or white == 0): return True 
+
+def write(y,x,red):
+
     window.fill(colors[0])
+
+    for i in range(0,2):
+        circle(((halfwi-2.5)+i*4),((halfhe-2.5)+i*4),int(radi/8),4)
+        circle((halfwi+(1.5-i*4)),(halfhe+(i*4-2.5)),int(radi/8),4)
+
     for j in range(0,height):
 
-        if(j <= width-1): 
-            p.draw.line(window,colors[3],(0,(j+1)*size),((width+1)*size,(j+1)*size),2)
+        if(j <= height-2): 
+            gfxdraw.hline(window,0,height*size,(j+1)*size,colors[4])
 
         for i in range(0,width):
-            if(j == 0 and i <= width-1): 
-                p.draw.line(window,colors[3],((i+1)*size,0),((i+1)*size,(height+1)*size),2)
+            if(j == 0 and i <= width-2): 
+                gfxdraw.vline(window,(i+1)*size,0,width*size,colors[4])
             
-            value = arr[j][i]
-            if(value != 0):
+            n = arr[j][i]
+            if(n != 0):
 
-                if(value == -1 or value == 1):
-                    p.draw.circle(window,colors[value],(i*size+radi+1,j*size+radi+1),radi-5)
+                if(n == -1 or n == 1):
+                    circle(i,j,radi-5,2)
+                    circle(i,j,radi-7,n)
 
-                elif(value == 2 and player):
-                    p.draw.circle(window,colors[2],(i*size+radi+1,j*size+radi+1),radi-2,2)
+                elif(n == -2):
+                    circle(i,j,radi-5,2)
+                    circle(i,j,radi-7,0)
+    if(red):
+        circle(x,y,int(radi/8),3)
 
+    p.display.flip()
+
+def update(y,x,n):
+    
+    remove(False)
+
+    flip(y,x,n)
+    
+    moves(n)
+
+    write(y,x,True)
+
+    if(check(n)):
+        time.sleep(3)
+        remove(True)
+        start()
+        return True 
+    else: return False
+
+def start():
+    for i in range(0,2):
+        arr[halfhe-i][halfwi-i] = 1
+        arr[halfhe+(0-i)][halfwi+(i-1)] = -1
+
+    moves(-1)
+    write(0,0,False)
+
+start()
 run = True
 while(run):
 
-    write()
-
-    if(player == False):
-        robot()
-        
     for event in p.event.get():
 
         if(event.type == p.QUIT):
             run = False
 
-        elif(event.type == p.MOUSEBUTTONDOWN and player):
+        elif(event.type == p.MOUSEBUTTONDOWN):
             human()
 
-    watch.tick(60)
-    p.display.flip()
+    watch.tick(10)
